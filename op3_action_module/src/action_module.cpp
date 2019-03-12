@@ -18,7 +18,11 @@
 
 #include <stdio.h>
 #include <sstream>
+#include <unistd.h>
 #include "op3_action_module/action_module.h"
+
+// Mel's changes
+#include <map>
 
 namespace robotis_op
 {
@@ -416,8 +420,40 @@ bool ActionModule::createFile(std::string file_name)
   return true;
 }
 
+bool ActionModule::playDefaultAction(int page_number)
+{
+  int default_page = 1;
+
+  // If an action's default action should be something other
+  // then 1 (stand up), add the mapping here
+  std::pair<int, int> default_action_special[] =
+  {
+    std::make_pair(122, 0),
+    std::make_pair(123, 0),
+    std::make_pair(1, 0)
+  };
+
+  int num_special = sizeof(default_action_special) / sizeof(default_action_special[0]);
+  std::map<int, int> special_map(default_action_special, default_action_special + num_special);
+
+  if(special_map.find(page_number) != special_map.end())
+    default_page = special_map[page_number];
+
+  if(default_page == 0)
+    return true;
+
+  action_file_define::Page page;
+  if(loadPage(default_page, &page) == false)
+    return false;
+  start(default_page, &page);
+  std::cout << "Sleeping" << std::endl;
+  usleep(2000 * 1000);
+  return true;
+}
+
 bool ActionModule::start(int page_number)
 {
+  std::cout << "Page: " << page_number << std::endl;
   if (page_number < 1 || page_number >= action_file_define::MAXNUM_PAGE)
   {
 
@@ -426,6 +462,9 @@ bool ActionModule::start(int page_number)
     publishStatusMsg(robotis_controller_msgs::StatusMsg::STATUS_ERROR, status_msg);
     return false;
   }
+
+  if(playDefaultAction(page_number) == false)
+    return false;
 
   action_file_define::Page page;
   if (loadPage(page_number, &page) == false)

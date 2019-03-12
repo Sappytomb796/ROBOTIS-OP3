@@ -53,6 +53,8 @@ class ActionModule : public robotis_framework::MotionModule, public robotis_fram
   bool loadFile(std::string file_name);
   bool createFile(std::string file_name);
 
+  bool playDefaultAction(int page_number);
+
   bool start(int page_number);
   bool start(std::string page_name);
   bool start(int page_number, action_file_define::Page* page);
