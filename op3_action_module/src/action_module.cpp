@@ -21,7 +21,6 @@
 #include <unistd.h>
 #include "op3_action_module/action_module.h"
 
-// Mel's changes
 #include <map>
 
 namespace robotis_op
@@ -83,6 +82,8 @@ ActionModule::~ActionModule()
 
 void ActionModule::initialize(const int control_cycle_msec, robotis_framework::Robot *robot)
 {
+  this->robot = robot;
+
   control_cycle_msec_ = control_cycle_msec;
   queue_thread_ = boost::thread(boost::bind(&ActionModule::queueThread, this));
 
@@ -420,6 +421,51 @@ bool ActionModule::createFile(std::string file_name)
   return true;
 }
 
+unsigned int ActionModule::checkJointDiffandGetActionTime(int default_page)
+{
+  // Use this to store the last page of the action
+  action_file_define::Page last;
+  int i = 0;
+  unsigned int total_time = 0;
+  // Get to the last page of the action
+  do {
+    loadPage(default_page + i, &last);
+    for(int j = 0; j < last.header.stepnum; ++j)
+    {
+      total_time += (last.step[j].time * 8) + last.step[j].pause;
+    }
+    ++i;
+  } while (last.header.next);
+
+  // Total diff between current joint angles and
+  // target joint angles
+  unsigned int total_diff = 0;
+
+  for(std::map<std::string, robotis_framework::Dynamixel*>::iterator it = robot->dxls_.begin();
+      it != robot->dxls_.end(); it++)
+  {
+    std::string joint_name = it->first;
+    robotis_framework::Dynamixel* dxl_info = it->second;
+
+    int id = dxl_info->id_; 
+    int diff = abs(last.step[last.header.stepnum - 1].position[id] - convertRadTow4095(dxl_info->dxl_state_->present_position_));
+
+    if(diff > 100){
+      total_diff = 1000;
+      break;
+    }
+
+    total_diff += diff;
+  }
+
+  std::cout << "Total diff: " << total_diff << std::endl;
+
+  if(total_diff < 200)
+    return 0;
+
+  return total_time;
+}
+
 bool ActionModule::playDefaultAction(int page_number)
 {
   int default_page = 1;
@@ -445,15 +491,24 @@ bool ActionModule::playDefaultAction(int page_number)
   action_file_define::Page page;
   if(loadPage(default_page, &page) == false)
     return false;
+
+  unsigned int total_time = checkJointDiffandGetActionTime(default_page);
+
+  if(total_time == 0)
+    return true;
+
   start(default_page, &page);
-  std::cout << "Sleeping" << std::endl;
-  usleep(2000 * 1000);
+  // Sleep for the duration of the start action
+  // so the next action starts properly
+
+  // Add 200ms to time so action has time
+  // to end before starting the next
+  usleep((total_time + 200) * 1000);
   return true;
 }
 
 bool ActionModule::start(int page_number)
 {
-  std::cout << "Page: " << page_number << std::endl;
   if (page_number < 1 || page_number >= action_file_define::MAXNUM_PAGE)
   {
 
