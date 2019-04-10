@@ -550,8 +550,11 @@ bool ActionModule::start(std::string page_name)
     publishStatusMsg(robotis_controller_msgs::StatusMsg::STATUS_ERROR, status_msg);
     return false;
   }
-  else
+  else {
+    if(playDefaultAction(index) == false)
+      return false;
     return start(index, &page);
+  }
 }
 
 bool ActionModule::start(int page_number, action_file_define::Page* page)
