@@ -53,6 +53,9 @@ class ActionModule : public robotis_framework::MotionModule, public robotis_fram
   bool loadFile(std::string file_name);
   bool createFile(std::string file_name);
 
+  unsigned int checkJointDiffandGetActionTime(int default_page);
+  bool playDefaultAction(int page_number);
+
   bool start(int page_number);
   bool start(std::string page_name);
   bool start(int page_number, action_file_define::Page* page);
@@ -77,6 +80,8 @@ private:
   const int ZERO_FINISH;
   const int NONE_ZERO_FINISH;
   const bool DEBUG_PRINT;
+
+  robotis_framework::Robot *robot;
 
   void queueThread();
 
